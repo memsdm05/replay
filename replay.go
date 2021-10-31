@@ -169,7 +169,7 @@ func (r *Replay) parseActions(or *osuReader)  {
 			a.Since = time.Duration(tmp.since) * time.Millisecond
 			a.KeyState = Button(tmp.state)
 			if len(r.Actions) > 0 {
-				a.Offset = r.Actions[len(r.Actions) - 1].Since + a.Since
+				a.Offset = r.Actions[len(r.Actions) - 1].Offset + a.Since
 			} else {
 				a.Offset = a.Since
 			}
