@@ -15,15 +15,32 @@ import (
 
 // Replay Represents an osu! .osr file. All integers are sized, while other fields are abstracted.
 type Replay struct {
+	// Mode is the Gamemode that the replay is played in
 	Mode Gamemode
+
+	// Version is the game version that the replay was made in
 	Version int32
+
+	// BeatmapDigest is the MD5 hash of the replay beatmap
 	BeatmapDigest [md5.Size]byte
-	Name string // player name
+
+	// Name is the player who supposedly created this replay
+	Name string
 	hash string
+
+	// Score is the score screen
 	Score Score
+
+	// LifeBarGraph is a slice of life, each representing a point on the graph
 	LifeBarGraph []Life
+
+	// Timestamp is when this replay was made
 	Timestamp time.Time
+
+	// Actions is a slice of cursor positions and states, in the form of an Action
 	Actions []Action
+
+	// ScoreId is the associated online score id if applicable
 	ScoreId int64
 }
 
@@ -84,17 +101,18 @@ func (r *Replay) Marshal(w io.Writer)  {
 }
 
 func (r *Replay) createGraph(ow *osuWriter) {
-	var sb strings.Builder
+	var buf bytes.Buffer
 	for _, l := range r.LifeBarGraph {
-		sb.WriteString(l.String())
-		sb.WriteRune(',')
+		buf.WriteString(l.Entry())
+		buf.WriteRune(',')
 	}
+	io.Copy(ow, &buf)
 }
 
 func (r *Replay) createActions(ow *osuWriter) {
 	var buf bytes.Buffer
 	for _, a := range r.Actions {
-		buf.WriteString(a.String())
+		buf.WriteString(a.Entry())
 		buf.WriteRune(',')
 	}
 	ow.WriteTypes(int32(buf.Len()))
@@ -150,7 +168,11 @@ func (r *Replay) parseActions(or *osuReader)  {
 
 			a.Since = time.Duration(tmp.since) * time.Millisecond
 			a.KeyState = Button(tmp.state)
-
+			if len(r.Actions) > 0 {
+				a.Offset = r.Actions[len(r.Actions) - 1].Since + a.Since
+			} else {
+				a.Offset = a.Since
+			}
 			r.Actions = append(r.Actions, a)
 			accum.Reset()
 		}
@@ -171,6 +193,10 @@ func (r *Replay) Hash() [md5.Size]byte {
 	return md5.Sum([]byte(s))
 }
 
+type OsrEntry interface {
+	Entry() string
+}
+
 // Life is a single entry on the LifeGraph
 type Life struct {
 	// Health
@@ -178,9 +204,8 @@ type Life struct {
 	Offset time.Duration
 }
 
-// String is how Life is represented in a .osr file
-// Will be changed in the future
-func (l Life) String() string {
+// Entry is how Life is represented in a .osr file
+func (l Life) Entry() string {
 	return fmt.Sprintf("%f|%d", l.Health, l.Offset / time.Millisecond)
 }
 
@@ -195,9 +220,14 @@ type Action struct {
 
 	// Since is the time.Duration since the last action
 	Since time.Duration
+
+	// Offset is a time.Duration of where the action is in
+	// relation to the start of the map
+	Offset time.Duration
 }
 
-func (a Action) String() string {
+// Entry is how Action is represented in the LZMA stream
+func (a Action) Entry() string {
 	return fmt.Sprintf("%d|%f|%f|%d", a.Since.Milliseconds(), a.X, a.Y, a.KeyState)
 }
 
