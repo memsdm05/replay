@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// Replay Represents an osu! .osr file. All integers are sized, while other fields are abstracted.
 type Replay struct {
 	Mode Gamemode
 	Version int32
@@ -21,12 +22,12 @@ type Replay struct {
 	hash string
 	Score Score
 	LifeBarGraph []Life
-	Timestamp time.Time // numOfTicks / 10000 - 62136892800000
+	Timestamp time.Time
 	Actions []Action
 	ScoreId int64
 }
 
-
+// New creates a new Replay from an io.Reader
 func New(r io.Reader) *Replay {
 	ret := new(Replay)
 
@@ -60,6 +61,8 @@ func New(r io.Reader) *Replay {
 	return ret
 }
 
+// Marshal writes the Replay to an io.Writer in .osr format.
+// WIP: Currently cannot be read by osu!
 func (r *Replay) Marshal(w io.Writer)  {
 	writer := &osuWriter{ w }
 
@@ -154,6 +157,9 @@ func (r *Replay) parseActions(or *osuReader)  {
 	}
 }
 
+// Hash is a MD5 digest of selected fields. Used for cheat detection and replay validation.
+//
+// This implementation is based off the 2016 client hack, and thus the reason why it's not working.
 func (r *Replay) Hash() [md5.Size]byte {
 	s := fmt.Sprintf("%dosu%s%x%d%d",
 		r.Score.MaxCombo,
@@ -165,18 +171,29 @@ func (r *Replay) Hash() [md5.Size]byte {
 	return md5.Sum([]byte(s))
 }
 
+// Life is a single entry on the LifeGraph
 type Life struct {
+	// Health
 	Health float64
 	Offset time.Duration
 }
 
+// String is how Life is represented in a .osr file
+// Will be changed in the future
 func (l Life) String() string {
 	return fmt.Sprintf("%f|%d", l.Health, l.Offset / time.Millisecond)
 }
 
+// Action represents a single replay frame
 type Action struct {
+	// X and Y is the position of the cursor
 	X, Y float64
+
+	// KeyState is current button press state
+	// See Button for more information
 	KeyState Button
+
+	// Since is the time.Duration since the last action
 	Since time.Duration
 }
 

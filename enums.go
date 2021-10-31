@@ -19,7 +19,7 @@ const (
 	Smoke
 
 	Kb1 = M1 + K1
-	kb2 = M2 + K2
+	Kb2 = M2 + K2
 )
 
 func (b Button) Has(button Button) bool {
