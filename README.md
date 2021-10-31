@@ -1,2 +1,2 @@
 # replay
- a osu replay parser
+an osu replay parser
