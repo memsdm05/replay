@@ -183,12 +183,25 @@ func (r *Replay) parseActions(or *osuReader)  {
 //
 // This implementation is based off the 2016 client hack, and thus the reason why it's not working.
 func (r *Replay) Hash() [md5.Size]byte {
-	s := fmt.Sprintf("%dosu%s%x%d%d",
-		r.Score.MaxCombo,
-		r.Name,
+	var perfectStr string
+	if r.Score.IsPerfect {
+		perfectStr = "True"
+	} else {
+		perfectStr = "False"
+	}
+
+	s := fmt.Sprintf("%vp%vo%vo%vt%va%xr%ve%vy%vo%vu0%vTrue",
+		r.Score.N100 + r.Score.N300,
+		r.Score.N50,
+		r.Score.Gekis,
+		r.Score.Katus,
+		r.Score.Misses,
 		r.BeatmapDigest,
+		r.Score.MaxCombo,
+		perfectStr,
+		r.Name,
 		r.Score.TotalScore,
-		r.Score.Rank())
+		r.Score.Mods)
 
 	return md5.Sum([]byte(s))
 }
