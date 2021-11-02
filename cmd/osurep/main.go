@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/memsdm05/replay"
+	"math/rand"
 	"os"
 	"time"
 )
@@ -11,12 +12,20 @@ func main() {
 	out, _ := os.Create("test_replay.osr")
 
 	r := replay.New(f)
+	rand.Seed(time.Now().UnixNano())
 
+	min, max := float64(-10), float64(10)
 
-	r.Name = "\n\n\n\n\n\n\n                                       loled"
-	r.Timestamp = time.Unix(459829320, 0)
-	r.Score.MaxCombo = 727
-	r.Score.TotalScore = 7272727
+	for i := 0; i < len(r.Actions); i++ {
+		a := &r.Actions[i]
+		a.KeyState |= replay.Smoke
+		a.X += min + rand.Float64() * (max - min)
+		a.Y += min + rand.Float64() * (max - min)
+	}
+
+	r.Name = "pogdeu"
+	//r.Timestamp = time.Now()
+
 	r.Marshal(out)
 
 	//fmt.Println(r.Actions)

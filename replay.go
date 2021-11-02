@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/ulikunitz/xz/lzma"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -97,32 +98,37 @@ func (r *Replay) Marshal(w io.Writer)  {
 	writer.WriteTypes("")
 
 	// todo fix conversion
-	writer.WriteTypes(int64(r.Timestamp.Unix() * 10000000 + 621355968000000000)) // UnixNano -> .NET ticks
+	writer.WriteTypes(r.Timestamp.Unix() * 10000000 + 621355968000000000) // UnixNano -> .NET ticks
 
-	writer.WriteTypes(int32(0))
-	// todo legacy lzma compression
-	//r.createActions(writer)
+	// todo lzma alone compression
+	//writer.WriteTypes(int32(0))
+	r.createActions(writer)
 	writer.WriteTypes(r.ScoreId)
 }
 
 func (r *Replay) createGraph(ow *osuWriter) {
-	var buf bytes.Buffer
 	for _, l := range r.LifeBarGraph {
-		buf.WriteString(l.Entry())
-		buf.WriteRune(',')
+		ow.Write([]byte(l.Entry() + ","))
 	}
-	io.Copy(ow, &buf)
+}
+
+func must(e error) {
+	if e != nil {
+		log.Fatalln(e)
+	}
 }
 
 func (r *Replay) createActions(ow *osuWriter) {
 	var buf bytes.Buffer
+	stream, _ := lzma.NewWriter(&buf)
 	for _, a := range r.Actions {
-		buf.WriteString(a.Entry())
-		buf.WriteRune(',')
+		stream.Write([]byte(a.Entry() + ","))
 	}
+	stream.Close()
+
+	fmt.Println(buf.Len())
 	ow.WriteTypes(int32(buf.Len()))
-	stream, _ := lzma.NewWriter(ow)
-	io.Copy(stream, &buf)
+	buf.WriteTo(ow)
 }
 
 func (r *Replay) parseGraph(or *osuReader)  {
