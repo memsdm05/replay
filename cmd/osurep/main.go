@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/memsdm05/replay"
 	"os"
+	"time"
 )
 
 func main() {
@@ -10,7 +11,12 @@ func main() {
 	out, _ := os.Create("test_replay.osr")
 
 	r := replay.New(f)
-	//r.Name = "pogdeu"
+
+
+	r.Name = "\n\n\n\n\n\n\n                                       loled"
+	r.Timestamp = time.Unix(459829320, 0)
+	r.Score.MaxCombo = 727
+	r.Score.TotalScore = 7272727
 	r.Marshal(out)
 
 	//fmt.Println(r.Actions)

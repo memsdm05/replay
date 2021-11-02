@@ -26,7 +26,9 @@ type Replay struct {
 
 	// Name is the player who supposedly created this replay
 	Name string
-	hash string
+
+	// LoadedHash is what the replay file had as its replay hash
+	LoadedHash string
 
 	// Score is the score screen
 	Score Score
@@ -62,7 +64,7 @@ func New(r io.Reader) *Replay {
 	copy(ret.BeatmapDigest[:], digest)
 
 	// name, replay hash, life graph, and score frame
-	reader.ReadTypes(&ret.Name, &ret.hash)
+	reader.ReadTypes(&ret.Name, &ret.LoadedHash)
 	ret.Score.unmarshal(reader)
 	ret.parseGraph(reader)
 
@@ -91,12 +93,15 @@ func (r *Replay) Marshal(w io.Writer)  {
 		fmt.Sprintf("%x", r.Hash()))
 
 	r.Score.marshal(writer)
-	r.createGraph(writer)
+	//r.createGraph(writer)
+	writer.WriteTypes("")
 
 	// todo fix conversion
-	writer.WriteTypes(int64(r.Timestamp.Unix() + 621355968000000000) / 100) // UnixNano -> .NET ticks
+	writer.WriteTypes(int64(r.Timestamp.Unix() * 10000000 + 621355968000000000)) // UnixNano -> .NET ticks
 
-	r.createActions(writer)
+	writer.WriteTypes(int32(0))
+	// todo legacy lzma compression
+	//r.createActions(writer)
 	writer.WriteTypes(r.ScoreId)
 }
 
@@ -219,7 +224,7 @@ type Life struct {
 
 // Entry is how Life is represented in a .osr file
 func (l Life) Entry() string {
-	return fmt.Sprintf("%f|%d", l.Health, l.Offset / time.Millisecond)
+	return fmt.Sprintf("%f|%d", l.Health, l.Offset.Milliseconds())
 }
 
 // Action represents a single replay frame
@@ -243,5 +248,3 @@ type Action struct {
 func (a Action) Entry() string {
 	return fmt.Sprintf("%d|%f|%f|%d", a.Since.Milliseconds(), a.X, a.Y, a.KeyState)
 }
-
-
