@@ -9,6 +9,7 @@ import (
 	"github.com/ulikunitz/xz/lzma"
 	"io"
 	"log"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,12 @@ type Replay struct {
 
 	// ScoreId is the associated online score id if applicable
 	ScoreId int64
+
+	// When PureTS is false, random nanoseconds are added to the marshalled replay
+	// so that osu! can play different replays with the same timestamp.
+	//
+	// By default, PureTs is false.
+	PureTS bool
 }
 
 // New creates a new Replay from an io.Reader
@@ -82,7 +89,7 @@ func New(r io.Reader) *Replay {
 }
 
 // Marshal writes the Replay to an io.Writer in .osr format.
-// WIP: Currently cannot be read by osu!
+// As of v0.0.2, this function creates replays that can be read by osu
 func (r *Replay) Marshal(w io.Writer)  {
 	writer := &osuWriter{ w }
 
@@ -97,10 +104,13 @@ func (r *Replay) Marshal(w io.Writer)  {
 	r.createGraph(writer)
 	//writer.WriteTypes("")
 
-	// todo fix conversion
-	writer.WriteTypes(r.Timestamp.Unix() * 10000000 + 621355968000000000) // UnixNano -> .NET ticks
+	var ts = r.Timestamp
+	if !r.PureTS {
+		ran := rand.New(rand.NewSource(time.Now().UnixNano()))
+		ts.Add(time.Duration(ran.Intn(10000000)))
+	}
+	writer.WriteTypes(ts.Unix() * 10000000 + 621355968000000000) // UnixNano -> .NET ticks
 
-	// todo lzma alone compression
 	//writer.WriteTypes(int32(0))
 	r.createActions(writer)
 	writer.WriteTypes(r.ScoreId)
@@ -109,7 +119,7 @@ func (r *Replay) Marshal(w io.Writer)  {
 func (r *Replay) createGraph(ow *osuWriter) {
 	var sb strings.Builder
 	for _, l := range r.LifeBarGraph {
-		sb.WriteString(l.Entry() + ",")
+		sb.WriteString(l.entry() + ",")
 	}
 	ow.WriteTypes(sb.String())
 }
@@ -124,7 +134,7 @@ func (r *Replay) createActions(ow *osuWriter) {
 	var buf bytes.Buffer
 	stream, _ := lzma.NewWriter(&buf)
 	for _, a := range r.Actions {
-		stream.Write([]byte(a.Entry() + ","))
+		stream.Write([]byte(a.entry() + ","))
 	}
 	stream.Close()
 
@@ -193,8 +203,6 @@ func (r *Replay) parseActions(or *osuReader)  {
 }
 
 // Hash is a MD5 digest of selected fields. Used for cheat detection and replay validation.
-//
-// This implementation is based off the 2016 client hack, and thus the reason why it's not working.
 func (r *Replay) Hash() [md5.Size]byte {
 	var perfectStr string
 	if r.Score.IsPerfect {
@@ -219,10 +227,6 @@ func (r *Replay) Hash() [md5.Size]byte {
 	return md5.Sum([]byte(s))
 }
 
-type OsrEntry interface {
-	Entry() string
-}
-
 // Life is a single entry on the LifeGraph
 type Life struct {
 	// Health
@@ -231,7 +235,7 @@ type Life struct {
 }
 
 // Entry is how Life is represented in a .osr file
-func (l Life) Entry() string {
+func (l Life) entry() string {
 	return fmt.Sprintf("%f|%d", l.Health, l.Offset.Milliseconds())
 }
 
@@ -253,6 +257,6 @@ type Action struct {
 }
 
 // Entry is how Action is represented in the LZMA stream
-func (a Action) Entry() string {
+func (a Action) entry() string {
 	return fmt.Sprintf("%d|%f|%f|%d", a.Since.Milliseconds(), a.X, a.Y, a.KeyState)
 }
