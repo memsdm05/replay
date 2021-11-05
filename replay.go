@@ -94,8 +94,8 @@ func (r *Replay) Marshal(w io.Writer)  {
 		fmt.Sprintf("%x", r.Hash()))
 
 	r.Score.marshal(writer)
-	//r.createGraph(writer)
-	writer.WriteTypes("")
+	r.createGraph(writer)
+	//writer.WriteTypes("")
 
 	// todo fix conversion
 	writer.WriteTypes(r.Timestamp.Unix() * 10000000 + 621355968000000000) // UnixNano -> .NET ticks
@@ -107,9 +107,11 @@ func (r *Replay) Marshal(w io.Writer)  {
 }
 
 func (r *Replay) createGraph(ow *osuWriter) {
+	var sb strings.Builder
 	for _, l := range r.LifeBarGraph {
-		ow.Write([]byte(l.Entry() + ","))
+		sb.WriteString(l.Entry() + ",")
 	}
+	ow.WriteTypes(sb.String())
 }
 
 func must(e error) {
